@@ -34,11 +34,11 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@Autonomous(name="AutoCRedHub", group="Pushbot")
-public class AutoCRedHub extends LinearOpMode {
+@Autonomous(name="AutoCV", group="Pushbot")
+public class AutoCV extends LinearOpMode {
 
     /* Declare OpMode members. */
-    HardwareMap21         robot   = new HardwareMap21();
+    HardwareMap21           robot   = new HardwareMap21();
     private ElapsedTime     runtime = new ElapsedTime();
 
     static final double     COUNTS_PER_MOTOR_REV    = 1440 ;
@@ -77,26 +77,40 @@ public class AutoCRedHub extends LinearOpMode {
                 robot.leftDrive.getCurrentPosition());
         telemetry.update();
 
-        // Wait for the game to start (driver presses PLAY)
+
+
+
+        // set up and initialize cameras
+        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+
+        // TODO: line below: might have to change for an external webCamera
+        webCamera = OpenCvCameraFactory.getInstance().createInternalCamera(OpenCvInternalCamera.CameraDirection.BACK, cameraMonitorViewId);
+        pipeline = new FreightFrenzyDeterminationPipeline();
+        webCamera.setPipeline(pipeline);
+        webCamera.setViewportRenderingPolicy(OpenCvCamera.ViewportRenderingPolicy.OPTIMIZE_VIEW);
+        webCamera.openCameraDeviceAsync(() -> {
+          webCamera.startStreaming(320, 240, OpenCvCameraRotation.UPRIGHT);
+        });
+        OpenCvCamera webCamera = OpenCvCameraFactory.getInstance().createWebcam(webcamName, cameraMonitorViewId);
+
+        // wait for the game to start (driver presses PLAY)
         waitForStart();
 
-        // move back 1 tile
-        encoderDrive(DRIVE_SPEED, -ONE_TILE, -ONE_TILE, 10);
-        telemetry.addData("Path", "Straight");
-
-        // TODO: check carousel direction
-        sleep(0);
-        robot.carousel.setPower(-0.5);
-        sleep(2000);
-        robot.carousel.setPower(0);
-
-        // 90 degree turn left
-        encoderDrive(DRIVE_SPEED, -NINETY_DEGREE_TURN, NINETY_DEGREE_TURN, 10);
-        telemetry.addData("Path", "Straight");
-
-        // move forward 1 tile
-        encoderDrive(DRIVE_SPEED, ONE_TILE, ONE_TILE, 10);
-        telemetry.addData("Path", "Straight");
+        webCamera.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener()
+        {
+            @Override
+            public void onOpened()
+            {
+                // Usually this is where you'll want to start streaming from the camera (see section 4)
+            }
+            @Override
+            public void onError(int errorCode)
+            {
+               /*
+               * This will be called if the camera could not be opened
+               */
+            }
+        });
 
         //stop
         robot.rightDrive.setPower(0);
@@ -106,7 +120,154 @@ public class AutoCRedHub extends LinearOpMode {
         telemetry.update();
     }
 
-    // define function encoderDrive - umm might need to change this lol
+    public static class FreightFrenzyDeterminationPipeline extends OpenCvPipeline
+    {
+      public enum Barcode
+      {
+        ONE,
+        TWO,
+        THREE
+      }
+
+      static final Scalar RED = new Scalar(255, 0, 0)
+      static final Scalar GREEN = new Scalar(0, 255, 0)
+      static final Scalar BLUE = new Scalar(0, 0, 255)
+
+      // making the boxes to scan ducks
+      // numbers subject to change
+      static final Point REGION1_TOPLEFT_ANCHOR_POINT = new Point (91, 98);
+      static final Point REGION2_TOPLEFT_ANCHOR_POINT = new Point (181, 98);
+      static final Point REGION3_TOPLEFT_ANCHOR_POINT = new Point (271, 98);
+
+
+      static final int REGION_WIDTH = 35;
+      static final int REGION_HEIGHT = 25;
+
+      final int ONE_THRESHOLD = 115;
+      final int TWO_THRESHOLD = 135;
+      final int THREE_THRESHOLD = 155;
+
+      Point region1_pointA = new Point(
+        REGION1_TOPLEFT_ANCHOR_POINT.x,
+        REGION1_TOPLEFT_ANCHOR_POINT.y);
+      Point region1_pointB = new Point(
+        REGION1_TOPLEFT_ANCHOR_POINT.x + REGION_WIDTH,
+        REGION1_TOPLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
+
+      Mat region1_Cb;
+      Mat YCrCb = new Mat();
+      Mat CB = new Mat();
+      int avg1;
+
+      private volatile DuckPosition position = DuckPosition.TWO;
+
+      void inputToCb(Mat input)
+      {
+        Imgproc.cutColor(input, YCrCb, Imgproc.COLOR_RGB2YCrCb);
+        Core.extractChannel(YCrCb, Cb, 1);
+      }
+
+      @Override
+      public void init(MatfirstFrame)
+      {
+        inputToCb(firstFrame);
+        region1_Cb = Cb.submat(new Rect(region1_pointA, region_pointB));
+      }
+
+      @Override
+      public Mat processFrame(Mat input)
+      {
+        inputToCb(input);
+        avg1 = (int) Core.mean(region1_Cb).val[0];
+        Imgproc.rectangle(
+          input,
+          region1_pointA,
+          region1_pointB,
+          RED,
+          3);
+
+        position = DuckPosition.TWO;
+        if (avg1 > THREE_THRESHOLD) {
+          position = DuckPosition.THREE;
+        } else if (avg1 > TWO_THRESHOLD){
+          position = DuckPosition.TWO;
+        } else if (avg1 > ONE_THRESHOLD){
+          position = DuckPosition.ONE;
+        }
+
+        Imgproc.rectangle(
+          input,
+          region1_pointA,
+          region1_pointB,
+          BLUE,
+          -1);
+
+        return input;
+
+      }
+
+      public int getAnalysis()
+      {
+        return avg1;
+      }
+
+    }
+
+
+/* pipeline for greyscale conversion
+
+
+    class ConvertToGreyPipeline extends OpenCvPipeline {
+    // Notice this is declared as an instance variable (and re-used), not a local variable
+    Mat grey = new Mat();
+
+    @Override
+    public Mat processFrame(Mat input)
+      {
+        Imgproc.cvtColor(input, grey, Imgproc.COLOR_RGB2GRAY);
+        return grey;
+      }
+    }
+*/
+
+
+/* example of how to create a pipeline, already done with processFrame
+
+
+    class FoobarPipeline extends OpenCvPipeline {
+    int lastResult = 0;
+
+    @Override
+    public Mat processFrame(Mat input)
+    {
+        // ... some image processing here ...
+
+          if(...)
+          {
+              lastResult = ONE;
+          }
+          else if(...)
+          {
+              lastResult = TWO
+          }
+          else if(...)
+          {
+              lastResult = THREE;
+          }
+      }
+
+      public int getLatestResults()
+      {
+          return lastResult;
+      }
+    }
+*/
+
+
+
+
+
+    // define function encoderDrive
     public void encoderDrive(double speed, double leftInches,double rightInches, double timeoutS) {
 
         // define variables

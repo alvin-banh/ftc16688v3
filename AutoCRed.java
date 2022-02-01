@@ -34,8 +34,8 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@Autonomous(name="AutoCBlueHub", group="Pushbot")
-public class AutoCBlueHub extends LinearOpMode {
+@Autonomous(name="AutoCRed", group="Pushbot")
+public class AutoCRed extends LinearOpMode {
 
     /* Declare OpMode members. */
     HardwareMap21         robot   = new HardwareMap21();
@@ -84,14 +84,14 @@ public class AutoCBlueHub extends LinearOpMode {
         encoderDrive(DRIVE_SPEED, -ONE_TILE, -ONE_TILE, 10);
         telemetry.addData("Path", "Straight");
 
-        // carousel
+        // TODO: check carousel direction
         sleep(0);
         robot.carousel.setPower(-0.5);
         sleep(2000);
         robot.carousel.setPower(0);
 
-        // 90 degree turn right
-        encoderDrive(DRIVE_SPEED, NINETY_DEGREE_TURN, -NINETY_DEGREE_TURN, 10);
+        // 90 degree turn left
+        encoderDrive(DRIVE_SPEED, -NINETY_DEGREE_TURN, NINETY_DEGREE_TURN, 10);
         telemetry.addData("Path", "Straight");
 
         // move forward 1 tile

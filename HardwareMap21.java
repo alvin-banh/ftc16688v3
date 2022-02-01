@@ -66,6 +66,10 @@ public class HardwareMap21
         intake = hwMap.get(DcMotor.class, "intake");
         outtake = hwMap.get(DcMotor.class, "outtake");
 
+        //TODO: figure out
+        WebcamName webcamName = hardwareMap.get(WebcamName.class, "camera")
+
+
         // set power for motors
         leftDrive.setPower(0);
         rightDrive.setPower(0);

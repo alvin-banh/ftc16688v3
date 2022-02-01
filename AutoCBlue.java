@@ -34,11 +34,11 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@Autonomous(name="AutoCRedWare", group="Pushbot")
-public class AutoCRedWare extends LinearOpMode {
+@Autonomous(name="AutoCBlue", group="Pushbot")
+public class AutoCBlue extends LinearOpMode {
 
     /* Declare OpMode members. */
-    HardwareMap21         robot   = new HardwareMap21();
+    HardwareMap21           robot   = new HardwareMap21();
     private ElapsedTime     runtime = new ElapsedTime();
 
     static final double     COUNTS_PER_MOTOR_REV    = 1440 ;
@@ -84,26 +84,18 @@ public class AutoCRedWare extends LinearOpMode {
         encoderDrive(DRIVE_SPEED, -ONE_TILE, -ONE_TILE, 10);
         telemetry.addData("Path", "Straight");
 
-        // TODO: check carousel direction
+        // carousel
         sleep(0);
         robot.carousel.setPower(-0.5);
         sleep(2000);
         robot.carousel.setPower(0);
 
-        // 90 degree turn left
-        encoderDrive(DRIVE_SPEED, -NINETY_DEGREE_TURN, NINETY_DEGREE_TURN, 10);
-        telemetry.addData("Path", "Straight");
-
-        // move forward 1 tile
-        encoderDrive(DRIVE_SPEED, ONE_TILE, ONE_TILE, 10);
-        telemetry.addData("Path", "Straight");
-
         // 90 degree turn right
         encoderDrive(DRIVE_SPEED, NINETY_DEGREE_TURN, -NINETY_DEGREE_TURN, 10);
         telemetry.addData("Path", "Straight");
 
-        // move forward five tiles
-        encoderDrive(DRIVE_SPEED, 5 * ONE_TILE, 5 * ONE_TILE, 10);
+        // move forward 1 tile
+        encoderDrive(DRIVE_SPEED, ONE_TILE, ONE_TILE, 10);
         telemetry.addData("Path", "Straight");
 
         //stop
